@@ -1,6 +1,8 @@
 go-graphql
 ==========
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/jbrekelmans/go-graphql.svg)](https://pkg.go.dev/github.com/jbrekelmans/go-graphql)
+
 Package `graphql` provides a Client for talking to a GraphQL server using HTTP with JSON-encoded requests/responses.
 
 Inspired by [shurcooL/graphQL](https://github.com/shurcooL/graphql) but includes the following enhancements:

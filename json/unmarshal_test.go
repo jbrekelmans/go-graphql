@@ -91,4 +91,14 @@ func Test_Unmarshal(t *testing.T) {
 			assert.Equal(t, "123", q.Animal.Age)
 		}
 	})
+	t.Run("JSON array into non-slice Go", func(t *testing.T) {
+		var q struct {
+			Person struct {
+				Age int
+			}
+		}
+		json := `{"person":[]}`
+		err := Unmarshal([]byte(json), &q)
+		assert.ErrorContains(t, err, `cannot unmarshal JSON array into non-slice type`)
+	})
 }

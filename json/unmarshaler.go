@@ -74,7 +74,9 @@ func (u *unmarshaler) Run(rv reflect.Value) error {
 			if u.state.top().recv.same(recv) {
 				recvNext = recv.copy()
 			}
-			recvNext.mapArrayStartInPlace()
+			if err := recvNext.mapArrayStartInPlace(); err != nil {
+				return err
+			}
 			u.state.push(stateItem{
 				recv: recv,
 			})
