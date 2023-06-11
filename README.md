@@ -8,8 +8,8 @@ Package `graphql` provides a Client for talking to a GraphQL server using HTTP w
 Inspired by [shurcooL/graphQL](https://github.com/shurcooL/graphql) but includes the following enhancements:
 
 1. Maps Golang primitive data types to GraphQL types (variable values).
-2. Returns structured error types that reflect GraphQL-level errors.
-3. Returns HTTP response status/headers.
+2. Returns structured error types that reflect GraphQL-level errors (for error handling / backoff).
+3. Returns HTTP response status/headers (for error handling / backoff).
 
 Installation
 ------------
