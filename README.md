@@ -72,7 +72,7 @@ var query struct {
 Then call `client.Query`, passing a pointer to it:
 
 ```Go
-err := client.Query(context.Background(), &query, nil)
+_, err := client.Query(context.Background(), &query, nil)
 if err != nil {
 	// Handle error.
 }
@@ -110,7 +110,7 @@ var q struct {
 Then call `client.Query`:
 
 ```Go
-err := client.Query(context.Background(), &q, nil)
+_, err := client.Query(context.Background(), &q, nil)
 if err != nil {
 	// Handle error.
 }
@@ -145,7 +145,7 @@ variables := map[string]interface{}{
 Finally, call `client.Query` providing `variables`:
 
 ```Go
-err := client.Query(context.Background(), &q, variables)
+_, err := client.Query(context.Background(), &q, variables)
 if err != nil {
 	// Handle error.
 }
@@ -211,7 +211,7 @@ var q struct {
 Then call `client.Query`:
 
 ```Go
-err := client.Query(context.Background(), &q, nil)
+_, err := client.Query(context.Background(), &q, nil)
 if err != nil {
 	// Handle error.
 }
@@ -268,7 +268,7 @@ variables := map[string]interface{}{
 Then call `client.Mutate`:
 
 ```Go
-err := client.Mutate(context.Background(), &m, variables)
+_, err := client.Mutate(context.Background(), &m, variables)
 if err != nil {
 	// Handle error.
 }
