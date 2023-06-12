@@ -2,11 +2,10 @@
 package mapping
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
-	"unicode"
-	"unicode/utf8"
+
+	"github.com/shurcooL/graphql/ident"
 )
 
 // FieldInfo defines how a field of a Go struct maps to GraphQL,
@@ -27,7 +26,7 @@ func NewFieldInfo(f reflect.StructField) FieldInfo {
 			// TODO validate tag further (i.e. we need to remove commas, reject # chars)
 			fieldInfo.graphQL = tag
 		} else {
-			fieldInfo.graphQL = firstRuneLower(f.Name)
+			fieldInfo.graphQL = ident.ParseMixedCaps(f.Name).ToLowerCamelCase()
 		}
 	}
 	// TODO validate that type is a struct (wrapped by any amount of pointers) if it's an inline fragment.
@@ -70,15 +69,4 @@ func (f FieldInfo) FieldName() string {
 // when constructing GraphQL selection sets.
 func (f FieldInfo) Inline() bool {
 	return f.inline
-}
-
-func firstRuneLower(x string) string {
-	r, size := utf8.DecodeRuneInString(x)
-	if r != utf8.RuneError {
-		return string(unicode.ToLower(r)) + x[size:]
-	}
-	if size == 0 {
-		return ""
-	}
-	panic(fmt.Errorf(`field is not valid UTF8 %#v`, x))
 }
