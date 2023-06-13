@@ -11,12 +11,15 @@ type Error struct {
 	// Err is the wrapped error.
 	Err error
 
-	// Errors are the response errors.
+	// Errors are the response errors, if available.
 	// Errors reflects the "errors" property of JSON objects in HTTP response bodies.
 	// See https://spec.graphql.org/.
 	Errors []ErrorItem
 
 	Message string
+
+	// Operation is the GraphQL query/mutation/operation for which the error occurred.
+	Operation string
 }
 
 var _ error = (*Error)(nil)
@@ -75,4 +78,33 @@ func (e *ErrorItem) UnmarshalJSON(b []byte) error {
 		_ = json.Unmarshal(msgRaw, &e.Message)
 	}
 	return nil
+}
+
+func getOrCreateError(err error) *Error {
+	structuredErr, ok := err.(*Error)
+	if !ok {
+		structuredErr = &Error{
+			Err:     err,
+			Message: err.Error(),
+		}
+	}
+	return structuredErr
+}
+
+func setErrorOperation(err error, operation string) error {
+	if err == nil {
+		return nil
+	}
+	structuredErr := getOrCreateError(err)
+	structuredErr.Operation = operation
+	return structuredErr
+}
+
+func setErrorItems(err error, errors []ErrorItem) error {
+	if err == nil {
+		return nil
+	}
+	structuredErr := getOrCreateError(err)
+	structuredErr.Errors = errors
+	return structuredErr
 }

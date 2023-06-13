@@ -29,55 +29,63 @@ func NewClient(url string, httpClient *http.Client) *Client {
 	return c
 }
 
-func (c *Client) doRequest(ctx context.Context, operationType string, q any, variables map[string]any) (*http.Response, error) {
+func (c *Client) doRequest(ctx context.Context, operationType string, q any, variables map[string]any) (resp *http.Response, err error) {
 	var queryBuilder queryBuilder
-	if err := queryBuilder.operation(operationType, q, variables); err != nil {
-		return nil, err
+	if err = queryBuilder.operation(operationType, q, variables); err != nil {
+		return
 	}
+	operation := queryBuilder.String()
+	// Add operation to error
+	defer func() {
+		err = setErrorOperation(err, operation)
+	}()
 	var reqBody bytes.Buffer
-	if err := json.NewEncoder(&reqBody).Encode(request{
-		Query:     queryBuilder.String(),
+	if err = json.NewEncoder(&reqBody).Encode(request{
+		Query:     operation,
 		Variables: variables,
 	}); err != nil {
-		return nil, err
+		return
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, &reqBody)
 	if err != nil {
-		return nil, err
+		return
 	}
 	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
+	resp, err = c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return
 	}
 	respBodyBytes, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		return resp, fmt.Errorf(`error reading body of %d-response: %w`, resp.StatusCode, err)
+		err = fmt.Errorf(`error reading body of %d-response: %w`, resp.StatusCode, err)
+		return
 	}
 	var respBody response
-	if err := json.NewDecoder(bytes.NewReader(respBodyBytes)).Decode(&respBody); err != nil {
-		return resp, fmt.Errorf(`error unmarshalling body of %d-response: %w`, resp.StatusCode, err)
+	if err = json.NewDecoder(bytes.NewReader(respBodyBytes)).Decode(&respBody); err != nil {
+		err = fmt.Errorf(`error unmarshaling body of %d-response: %s (%w)`, resp.StatusCode,
+			string(respBodyBytes), err)
+		return
 	}
+	// Add respBody.Errors to err (if err != nil)
+	defer func() {
+		err = setErrorItems(err, respBody.Errors)
+	}()
 	if resp.StatusCode != http.StatusOK {
-		err := NewErrorf(`response has non-success status %d: %s`, resp.StatusCode, string(respBodyBytes))
-		err.Errors = respBody.Errors
-		return resp, err
+		err = fmt.Errorf(`response has non-success status %d: %s`, resp.StatusCode, string(respBodyBytes))
+		return
 	}
 	if respBody.Data != nil {
-		if err := internalJSON.Unmarshal(*respBody.Data, q); err != nil {
-			err := NewErrorf(`error decoding data of %d-response: %w`, resp.StatusCode, err)
-			err.Errors = respBody.Errors
-			return resp, err
+		if unmarshalErr := internalJSON.Unmarshal(*respBody.Data, q); unmarshalErr != nil {
+			err = fmt.Errorf(`error decoding data of %d-response: %w`, resp.StatusCode, unmarshalErr)
+			return
 		}
 	}
 	if len(respBody.Errors) > 0 {
 		errorsJSON, _ := json.Marshal(respBody.Errors)
-		err := NewErrorf(`%d-response with errors: %s`, resp.StatusCode, string(errorsJSON))
-		err.Errors = respBody.Errors
-		return resp, err
+		err = fmt.Errorf(`%d-response with errors: %s`, resp.StatusCode, string(errorsJSON))
 	}
-	return resp, nil
+	return
 }
 
 // Mutate does a mutation operation on the GraphQL server.
@@ -90,8 +98,9 @@ func (c *Client) Mutate(ctx context.Context, m any, variables map[string]any) (*
 // If the HTTP response status and headers were received successfully then returns a non-nil *http.Response that reflects the status and
 // headers. The body of the returned HTTP response is always closed.
 //
-// If the GraphQL response was completely received and parsed, and contains GraphQL-level errors, an error of type *Error is returned
-// that reflects the GraphQL-level errors.
+// The returned error will be of type *Error, unless an error occurs formatting the GraphQL query/mutation/operation.
+// If the GraphQL response was completely received and parsed, and contains GraphQL-level errors,
+// these errors are reflected in the returned (*Error).Errors.
 //
 // Users should interpret any of the following as a transient error condition that may go away by retrying:
 // 1. The returned error, say x, implements interface{ Temporary() bool } and x.Temporary() is true.
