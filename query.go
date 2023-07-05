@@ -9,7 +9,8 @@ import (
 )
 
 type queryBuilder struct {
-	b bytes.Buffer
+	b         bytes.Buffer
+	commaFlag bool
 }
 
 func (qb *queryBuilder) operation(operationType string, q any, variables map[string]any) error {
@@ -23,37 +24,46 @@ func (qb *queryBuilder) operation(operationType string, q any, variables map[str
 	return nil
 }
 
-func (qb *queryBuilder) selectionSetHelper(t reflect.Type, inline bool) {
+func (qb *queryBuilder) selectionSetHelper(t reflect.Type, inline bool) (notEmpty bool) {
 	switch t.Kind() {
 	// NOTE: even if we add support for arrays here, unmarshaling JSON into Go arrays is not supported.
 	// TODO add support for unmarshaling into Go arrays.
 	case reflect.Ptr, reflect.Slice:
-		qb.selectionSetHelper(t.Elem(), false)
+		if qb.selectionSetHelper(t.Elem(), false) {
+			notEmpty = true
+		}
 	case reflect.Struct:
 		if !inline {
 			qb.b.WriteByte('{')
+			qb.commaFlag = false
+			notEmpty = true
 		}
-		n := 0
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
 			if !f.IsExported() {
 				continue
 			}
-			n++
-			if n == 2 {
-				qb.b.WriteByte(',')
-			}
 			x := mapping.NewFieldInfo(t.Field(i))
+			notEmpty = true
 			if !x.Inline() {
+				if qb.commaFlag {
+					qb.b.WriteByte(',')
+					qb.commaFlag = false
+				}
 				qb.raw(x.GraphQL())
+				if isEmpty := !qb.selectionSetHelper(f.Type, false); isEmpty {
+					qb.commaFlag = true
+				}
+			} else {
+				qb.selectionSetHelper(f.Type, true)
 			}
-			qb.selectionSetHelper(f.Type, x.Inline())
-
 		}
 		if !inline {
 			qb.b.WriteByte('}')
+			qb.commaFlag = false
 		}
 	}
+	return
 }
 
 func (qb *queryBuilder) raw(s string) {
